@@ -317,7 +317,7 @@ def main():
             if time.time() - last_notification_time >= 600:
                 send_telegram_message(message)
                 last_notification_time = time.time()
-            print(Fore.CYAN + Style.BRIGHT + f"Next looping {minutes} minutes {seconds} seconds ] ====" + Style.RESET_ALL, end="\r", flush=True)
+            print(Fore.CYAN + Style.BRIGHT + f"Next looping {minutes} minutes {seconds} seconds ]" + Style.RESET_ALL, end="\r", flush=True)
             time.sleep(1)
 
 if __name__ == "__main__":
