@@ -34,6 +34,10 @@ headers = {
 }
 
 def send_telegram_message(message):
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        print("Telegram bot token or chat ID is missing.")
+        return
+    
     payload = {
         'chat_id': TELEGRAM_CHAT_ID,
         'text': message,
