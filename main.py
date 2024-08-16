@@ -12,7 +12,7 @@ init()
 # Telegram bot setup
 TELEGRAM_BOT_TOKEN = 'CHANGE YOUR TOKEN OR BLANK'
 TELEGRAM_CHAT_ID = 'CHANGE YOUR CHAT ID'
-TELEGRAM_API_URL = f'https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage'
+TELEGRAM_API_URL = f'https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage' if TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID else None
 
 headers = {
     'accept': 'application/json, text/plain, */*',
@@ -34,9 +34,9 @@ headers = {
 }
 
 def send_telegram_message(message):
-    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
-        print("Telegram bot token or chat ID is missing.")
-        return
+    if not TELEGRAM_API_URL:
+        print("Telegram bot token or chat ID is missing. Skipping message sending.")
+        return  # Skip sending the message if credentials are missing
     
     payload = {
         'chat_id': TELEGRAM_CHAT_ID,
@@ -56,7 +56,7 @@ def get_balance(token):
         response.raise_for_status()
         return response.json()
     except json.JSONDecodeError:
-        print(f"JSON Decode Error: Token Invalid")
+        print("JSON Decode Error: Token Invalid")
         return None
     except requests.RequestException as e:
         print(f"Request Error: {e}")
@@ -72,7 +72,7 @@ def claim_daily(token):
         response.raise_for_status()
         return response.json(), response.status_code
     except json.JSONDecodeError:
-        print(f"JSON Decode Error: Token Invalid")
+        print("JSON Decode Error: Token Invalid")
         return None, None
     except requests.RequestException as e:
         print(f"Request Error: {e}")
@@ -87,7 +87,7 @@ def start_farming(token):
         response.raise_for_status()
         return response.json(), response.status_code
     except json.JSONDecodeError:
-        print(f"JSON Decode Error: Token Invalid")
+        print("JSON Decode Error: Token Invalid")
         return None, None
     except requests.RequestException as e:
         print(f"Request Error: {e}")
@@ -102,7 +102,7 @@ def claim_farming(token):
         response.raise_for_status()
         return response.json(), response.status_code
     except json.JSONDecodeError:
-        print(f"JSON Decode Error: Token Invalid")
+        print("JSON Decode Error: Token Invalid")
         return None, None
     except requests.RequestException as e:
         print(f"Request Error: {e}")
@@ -117,7 +117,7 @@ def play_game(token):
         response.raise_for_status()
         return response.json(), response.status_code
     except json.JSONDecodeError:
-        print(f"JSON Decode Error: Token Invalid")
+        print("JSON Decode Error: Token Invalid")
         return None, None
     except requests.RequestException as e:
         print(f"Request Error: {e}")
@@ -132,7 +132,7 @@ def claim_game(token, point):
         response.raise_for_status()
         return response.json(), response.status_code
     except json.JSONDecodeError:
-        print(f"JSON Decode Error: Token Invalid")
+        print("JSON Decode Error: Token Invalid")
         return None, None
     except requests.RequestException as e:
         print(f"Request Error: {e}")
@@ -164,9 +164,9 @@ def main():
             
             balance_response = get_balance(token)
             if balance_response is not None:
-                balance = float(balance_response['data'].get('available_balance'))
+                balance = float(balance_response['data'].get('available_balance', 0))
                 balance = int(balance)  # Convert to integer to remove decimal part
-                tiket = balance_response['data'].get('play_passes')
+                tiket = balance_response['data'].get('play_passes', 0)
                 
                 rows.append([
                     Fore.YELLOW + "Balance" + Style.RESET_ALL, f"{balance}",
@@ -265,60 +265,44 @@ def main():
                             Fore.RED + "Farming" + Style.RESET_ALL, f"Error. {farming}"
                         ])
                 else:
-                    message = f"Account {i+1}: Farming - Error {farming}"
+                    message = f"Account {i+1}: Farming - Error. {farming}"
                     send_telegram_message(message)
                     rows.append([
-                        Fore.RED + "Farming" + Style.RESET_ALL, f"Error {farming}"
+                        Fore.RED + "Farming" + Style.RESET_ALL, f"Error. {farming}"
                     ])
-                
-                while tiket > 0:
-                    play, play_status = play_game(token)
-                    if play_status != 200:
-                        message = f"Account {i+1}: Game - Failed to start game!"
+
+                play_response, play_status_code = play_game(token)
+                if play_status_code == 200:
+                    game_points = play_response['data'].get('points', 0)
+                    message = f"Account {i+1}: Play Game - Points Earned: {game_points}"
+                    send_telegram_message(message)
+                    rows.append([
+                        Fore.GREEN + "Play Game" + Style.RESET_ALL, f"Points Earned: {game_points}"
+                    ])
+                    
+                    claim_response, claim_status_code = claim_game(token, game_points)
+                    if claim_status_code == 200:
+                        message = f"Account {i+1}: Claim Game - Successfully Claimed {game_points} Points"
                         send_telegram_message(message)
                         rows.append([
-                            Fore.RED + "Game" + Style.RESET_ALL, "Failed to start game!"
+                            Fore.GREEN + "Claim Game" + Style.RESET_ALL, f"Successfully Claimed {game_points} Points"
                         ])
                     else:
-                        message = f"Account {i+1}: Game - Game Started!"
+                        message = f"Account {i+1}: Claim Game - Failed to Claim Points: {claim_response}"
                         send_telegram_message(message)
                         rows.append([
-                            Fore.GREEN + "Game" + Style.RESET_ALL, "Game Started!"
+                            Fore.RED + "Claim Game" + Style.RESET_ALL, f"Failed to Claim Points: {claim_response}"
                         ])
-                        for _ in range(30):
-                            time_left = 30 - _
-                            rows.append([
-                                Fore.CYAN + "Game" + Style.RESET_ALL, f"Playing game, waktu sisa {time_left} detik"
-                            ])
-                            time.sleep(1)
-                        point = random.randint(400, 600)
-                        claim, claim_status = claim_game(token, point)
-                        if claim_status != 200:
-                            message = f"Account {i+1}: Game - Failed to claim game points!"
-                            send_telegram_message(message)
-                            rows.append([
-                                Fore.RED + "Game" + Style.RESET_ALL, "Failed to claim game points!"
-                            ])
-                        else:
-                            message = f"Account {i+1}: Game - Success. Mendapatkan {point} Poin"
-                            send_telegram_message(message)
-                            rows.append([
-                                Fore.GREEN + "Game" + Style.RESET_ALL, f"Success. Mendapatkan {point} Poin"
-                            ])
-
-                        tiket -= 1
-
-            print_table(rows, headers=["Status", "Message"])
+                else:
+                    message = f"Account {i+1}: Play Game - Failed to Play Game: {play_response}"
+                    send_telegram_message(message)
+                    rows.append([
+                        Fore.RED + "Play Game" + Style.RESET_ALL, f"Failed to Play Game: {play_response}"
+                    ])
+            
+            print_table(rows, headers=["Type", "Details"])
         
-        print(Fore.BLUE + Style.BRIGHT + f"\nALL YOUR ACCOUNT SUCCESS" + Style.RESET_ALL)
-        for _ in range(1800):
-            minutes, seconds = divmod(1800 - _, 60)
-            message = f"Next looping delay {minutes} minutes {seconds} second"
-            if time.time() - last_notification_time >= 600:
-                send_telegram_message(message)
-                last_notification_time = time.time()
-            print(Fore.CYAN + Style.BRIGHT + f"Next looping {minutes} minutes {seconds} seconds ]" + Style.RESET_ALL, end="\r", flush=True)
-            time.sleep(1)
+        time.sleep(300)  # Sleep for 5 minutes before repeating
 
 if __name__ == "__main__":
     main()
