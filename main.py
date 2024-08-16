@@ -36,7 +36,7 @@ headers = {
 def send_telegram_message(message):
     if not TELEGRAM_API_URL:
         print("Telegram bot token or chat ID is missing. Skipping message sending.")
-        return  # Skip sending the message if credentials are missing
+        return
     
     payload = {
         'chat_id': TELEGRAM_CHAT_ID,
@@ -144,6 +144,15 @@ def get_random_color():
 def print_table(rows, headers):
     print(tabulate(rows, headers=headers, tablefmt='grid'))
 
+def countdown(seconds):
+    while seconds > 0:
+        mins, secs = divmod(seconds, 60)
+        timer = f'{mins:02}:{secs:02}'
+        print(f'\rNext loop in: {timer}', end='')
+        time.sleep(1)
+        seconds -= 1
+    print()  # For a newline after countdown
+
 def main():
     tokens = []
     try:
@@ -152,8 +161,6 @@ def main():
     except FileNotFoundError:
         print("No tokens file found.")
         return
-
-    last_notification_time = time.time()
 
     while True:
         for i, token in enumerate(tokens):
@@ -302,7 +309,7 @@ def main():
             
             print_table(rows, headers=["Type", "Details"])
         
-        time.sleep(300)  # Sleep for 5 minutes before repeating
+        countdown(300)  # Countdown for 5 minutes before repeating
 
 if __name__ == "__main__":
     main()
